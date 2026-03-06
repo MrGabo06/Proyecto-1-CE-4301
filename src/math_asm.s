@@ -5,6 +5,8 @@
 
 .section .text
 .globl sum_to_n
+.globl subtract_two_numbers
+
 sum_to_n:
     # Save return address
     addi sp, sp, -16
@@ -22,8 +24,8 @@ sum_to_n:
     blez s0, end_sum
     
 loop_sum:
-    add s2, s2, s1    # sum += counter
-    addi s1, s1, 1    # counter++
+    add s2, s2, s1        # sum += counter
+    addi s1, s1, 1        # counter++
     ble s1, s0, loop_sum  # if counter <= n, continue loop
     
 end_sum:
@@ -36,4 +38,15 @@ end_sum:
     lw s0, 8(sp)
     lw ra, 12(sp)
     addi sp, sp, 16
+    ret
+
+
+# Assembly function to subtract two numbers
+# Function signature: int subtract_two_numbers(int a, int b)
+# a0 = first number
+# a1 = second number
+# a0 = return value (a - b)
+
+subtract_two_numbers:
+    sub a0, a0, a1
     ret
