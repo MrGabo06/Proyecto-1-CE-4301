@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-extern uint32_t block(const uint32_t *key, const uint32_t *nonce, uint32_t counter);
+extern void block(const uint32_t *key, const uint32_t *nonce, uint32_t counter, uint32_t *out);
 
 #define UART_BASE 0x10000000UL
 #define UART_RBR 0
@@ -136,16 +136,6 @@ void print_hex32(uint32_t value)
     }
 }
 
-/*
- * Convierte una línea hexadecimal en bytes.
- * Acepta:
- *   - con o sin 0x
- *   - con o sin espacios
- * Ejemplos válidos:
- *   00010203...
- *   0x00010203...
- *   00 01 02 03 ...
- */
 int parse_hex_bytes_exact(const char *str, uint8_t *out, int expected_bytes)
 {
     int i = 0;
@@ -252,12 +242,21 @@ void read_nonce(uint32_t nonce[3])
     }
 }
 
+void print_keystream(uint32_t out[16])
+{
+    for (int i = 0; i < 16; i++)
+    {
+        print_hex32(out[i]);
+        print_newline();
+    }
+}
+
 void main()
 {
     uint32_t key[8];
     uint32_t nonce[3];
     uint32_t counter;
-    uint32_t result;
+    uint32_t keystream[16];
 
     print_string("Prueba de block");
     print_newline();
@@ -268,14 +267,12 @@ void main()
     read_nonce(nonce);
     counter = read_hex32("counter: ");
 
-    result = block(key, nonce, counter);
+    block(key, nonce, counter, keystream);
 
     print_newline();
-    print_string("Resultado block:");
+    print_string("Keystream completo:");
     print_newline();
-    print_string("a0: ");
-    print_hex32(result);
-    print_newline();
+    print_keystream(keystream);
 
     while (1)
     {
