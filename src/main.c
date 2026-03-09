@@ -1,21 +1,25 @@
-// Simple C program that calls assembly functions
-// This demonstrates C+assembly integration in RISC-V
+#include <stdint.h>
 
-extern int sum_to_n(int n);
-extern int subtract_two_numbers(int a, int b);
+extern void quarter_round(void);
 
 #define UART_BASE 0x10000000UL
-
-// 16550-like UART registers
-#define UART_RBR 0 // Receiver Buffer Register
-#define UART_THR 0 // Transmit Holding Register
-#define UART_LSR 5 // Line Status Register
+#define UART_RBR 0
+#define UART_THR 0
+#define UART_LSR 5
 
 #define LSR_DATA_READY 0x01
 #define LSR_THR_EMPTY 0x20
 
 static volatile unsigned char *const uart =
     (volatile unsigned char *)UART_BASE;
+
+typedef struct
+{
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+} quarter_round_result_t;
 
 void print_char(char c)
 {
@@ -43,35 +47,6 @@ void print_string(const char *str)
     }
 }
 
-void print_number(int num)
-{
-    if (num == 0)
-    {
-        print_char('0');
-        return;
-    }
-
-    if (num < 0)
-    {
-        print_char('-');
-        num = -num;
-    }
-
-    char buffer[12];
-    int i = 0;
-
-    while (num > 0)
-    {
-        buffer[i++] = '0' + (num % 10);
-        num /= 10;
-    }
-
-    while (i > 0)
-    {
-        print_char(buffer[--i]);
-    }
-}
-
 void print_newline()
 {
     print_char('\r');
@@ -86,14 +61,12 @@ void read_line(char *buffer, int max_len)
     {
         char c = read_char();
 
-        // Enter
         if (c == '\r' || c == '\n')
         {
             print_newline();
             break;
         }
 
-        // Backspace handling
         if ((c == '\b' || c == 127) && i > 0)
         {
             i--;
@@ -106,101 +79,110 @@ void read_line(char *buffer, int max_len)
         if (i < max_len - 1)
         {
             buffer[i++] = c;
-            print_char(c); // echo
+            print_char(c);
         }
     }
 
     buffer[i] = '\0';
 }
 
-int parse_int(const char *str)
+int hex_value(char c)
 {
-    int i = 0;
-    int sign = 1;
-    int value = 0;
-
-    if (str[0] == '-')
-    {
-        sign = -1;
-        i++;
-    }
-    else if (str[0] == '+')
-    {
-        i++;
-    }
-
-    while (str[i] >= '0' && str[i] <= '9')
-    {
-        value = value * 10 + (str[i] - '0');
-        i++;
-    }
-
-    return sign * value;
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F')
+        return 10 + (c - 'A');
+    return 0;
 }
 
-int read_number()
+uint32_t parse_hex32(const char *str)
+{
+    uint32_t value = 0;
+    int i = 0;
+
+    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+    {
+        i = 2;
+    }
+
+    while (str[i] != '\0')
+    {
+        value = (value << 4) | (uint32_t)hex_value(str[i]);
+        i++;
+    }
+
+    return value;
+}
+
+uint32_t read_hex32(const char *prompt)
 {
     char buffer[32];
+    print_string(prompt);
     read_line(buffer, sizeof(buffer));
-    return parse_int(buffer);
+    return parse_hex32(buffer);
+}
+
+void print_hex32(uint32_t value)
+{
+    const char *hex = "0123456789abcdef";
+
+    for (int i = 7; i >= 0; i--)
+    {
+        uint32_t nibble = (value >> (i * 4)) & 0xF;
+        print_char(hex[nibble]);
+    }
+}
+
+quarter_round_result_t call_quarter_round(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+{
+    register uint32_t reg_a0 asm("a0") = a;
+    register uint32_t reg_a1 asm("a1") = b;
+    register uint32_t reg_a2 asm("a2") = c;
+    register uint32_t reg_a3 asm("a3") = d;
+
+    asm volatile(
+        "call quarter_round"
+        : "+r"(reg_a0), "+r"(reg_a1), "+r"(reg_a2), "+r"(reg_a3)
+        :
+        : "ra", "memory");
+
+    quarter_round_result_t out;
+    out.a = reg_a0;
+    out.b = reg_a1;
+    out.c = reg_a2;
+    out.d = reg_a3;
+
+    return out;
 }
 
 void main()
 {
-    print_string("Testing sum_to_n assembly function");
+    uint32_t a = read_hex32("a: ");
+    uint32_t b = read_hex32("b: ");
+    uint32_t c = read_hex32("c: ");
+    uint32_t d = read_hex32("d: ");
+
+    quarter_round_result_t qr = call_quarter_round(a, b, c, d);
     print_newline();
-    print_newline();
-
-    print_string("How many test values do you want to enter? ");
-    int num_tests = read_number();
-
-    if (num_tests <= 0)
-    {
-        print_string("Invalid amount. Nothing to test.");
-        print_newline();
-    }
-    else
-    {
-        for (int i = 0; i < num_tests; i++)
-        {
-            print_string("Enter value #");
-            print_number(i + 1);
-            print_string(": ");
-
-            int n = read_number();
-            int result = sum_to_n(n);
-
-            print_string("sum_to_n(");
-            print_number(n);
-            print_string(") = ");
-            print_number(result);
-            print_newline();
-        }
-    }
-
-    print_newline();
-    print_string("Now testing subtraction function");
-    print_newline();
+    print_string("Resultado:------------------------------------------------- ");
     print_newline();
 
-    print_string("Enter first number: ");
-    int a = read_number();
-
-    print_string("Enter second number: ");
-    int b = read_number();
-
-    int subtraction_result = subtract_two_numbers(a, b);
-
-    print_string("subtract_two_numbers(");
-    print_number(a);
-    print_string(", ");
-    print_number(b);
-    print_string(") = ");
-    print_number(subtraction_result);
+    print_string("a: ");
+    print_hex32(qr.a);
     print_newline();
 
+    print_string("b: ");
+    print_hex32(qr.b);
     print_newline();
-    print_string("Tests completed.");
+
+    print_string("c: ");
+    print_hex32(qr.c);
+    print_newline();
+
+    print_string("d: ");
+    print_hex32(qr.d);
     print_newline();
 
     while (1)

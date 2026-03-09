@@ -6,47 +6,55 @@
 .section .text
 .globl sum_to_n
 .globl subtract_two_numbers
+.globl quarter_round
 
-sum_to_n:
-    # Save return address
-    addi sp, sp, -16
-    sw ra, 12(sp)
-    sw s0, 8(sp)
-    sw s1, 4(sp)
-    sw s2, 0(sp)
-    
-    # Initialize variables
-    mv s0, a0      # s0 = n (input parameter)
-    li s1, 1       # s1 = counter (start from 1)
-    li s2, 0       # s2 = sum accumulator
-    
-    # Check if n <= 0
-    blez s0, end_sum
-    
-loop_sum:
-    add s2, s2, s1        # sum += counter
-    addi s1, s1, 1        # counter++
-    ble s1, s0, loop_sum  # if counter <= n, continue loop
-    
-end_sum:
-    # Return value in a0
-    mv a0, s2
-    
-    # Restore registers and return
-    lw s2, 0(sp)
-    lw s1, 4(sp)
-    lw s0, 8(sp)
-    lw ra, 12(sp)
-    addi sp, sp, 16
+.text
+.globl quarter_round
+
+quarter_round:
+    mv t0, a0
+    mv t1, a1
+    mv t2, a2
+    mv t3, a3
+
+    add t0, t0, t1
+    xor t3, t3, t0
+
+    slli t4, t3, 16
+    srli t5, t3, 16
+    or   t3, t4, t5
+
+    add t2, t2, t3
+    xor t1, t1, t2
+
+    slli t4, t1, 12
+    srli t5, t1, 20
+    or   t1, t4, t5
+
+    add t0, t0, t1
+    xor t3, t3, t0
+
+    slli t4, t3, 8
+    srli t5, t3, 24
+    or   t3, t4, t5
+
+    add t2, t2, t3
+    xor t1, t1, t2
+
+    slli t4, t1, 7
+    srli t5, t1, 25
+    or   t1, t4, t5
+
+    mv a0, t0
+    mv a1, t1
+    mv a2, t2
+    mv a3, t3
     ret
 
 
-# Assembly function to subtract two numbers
-# Function signature: int subtract_two_numbers(int a, int b)
-# a0 = first number
-# a1 = second number
-# a0 = return value (a - b)
 
-subtract_two_numbers:
-    sub a0, a0, a1
-    ret
+
+
+
+
+
