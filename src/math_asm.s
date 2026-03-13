@@ -52,235 +52,309 @@ block:
     # memoria reservada
     addi sp, sp, -144
     sw ra, 140(sp)
-    sw s0, 136(sp)
-    sw s1, 132(sp)
-    sw s2, 128(sp)
-    sw s3, 124(sp)
-    sw s4, 120(sp)
-    sw s5, 116(sp)
-    sw s6, 112(sp)
-    sw s7, 108(sp)
-    sw s8, 104(sp)
-    sw s9, 100(sp)
-    sw s10, 96(sp)
-    sw s11, 92(sp)
+    sw s1, 136(sp)
 
-    # puntero de salida
-    sw a3, 88(sp)
+    # Estado original y de trabajo
+    li t0, 0x61707865
+    sw t0, 0(sp)    # original 0
+    sw t0, 64(sp)   # working 0
 
-    # constantes
-    li a4, 0x61707865
-    li a5, 0x3320646e
-    li a6, 0x79622d32
-    li a7, 0x6b206574
-    li t6, 10
+    li t0, 0x3320646e
+    sw t0, 4(sp)    # original 1
+    sw t0, 68(sp)   # working 1
+
+    li t0, 0x79622d32
+    sw t0, 8(sp)    # original 2
+    sw t0, 72(sp)   # working 2
+
+    li t0, 0x6b206574
+    sw t0, 12(sp)   # original 3
+    sw t0, 76(sp)   # working 3
 
     # key
-    lw s0, 0(a0)
-    lw s1, 4(a0)
-    lw s2, 8(a0)
-    lw s3, 12(a0)
-    lw s4, 16(a0)
-    lw s5, 20(a0)
-    lw s6, 24(a0)
-    lw s7, 28(a0)
+    lw t0, 0(a0)
+    sw t0, 16(sp)   # original 4
+    sw t0, 80(sp)   # working 4
+
+    lw t0, 4(a0)
+    sw t0, 20(sp)   # original 5
+    sw t0, 84(sp)   # working 5
+
+    lw t0, 8(a0)
+    sw t0, 24(sp)   # original 6
+    sw t0, 88(sp)   # working 6
+
+    lw t0, 12(a0)
+    sw t0, 28(sp)   # original 7
+    sw t0, 92(sp)   # working 7
+
+    lw t0, 16(a0)
+    sw t0, 32(sp)   # original 8
+    sw t0, 96(sp)   # working 8
+
+    lw t0, 20(a0)
+    sw t0, 36(sp)   # original 9
+    sw t0, 100(sp)  # working 9
+
+    lw t0, 24(a0)
+    sw t0, 40(sp)   # original 10
+    sw t0, 104(sp)  # working 10
+
+    lw t0, 28(a0)
+    sw t0, 44(sp)   # original 11
+    sw t0, 108(sp)  # working 11
 
     # counter
-    mv s8, a2
+    mv t0, a2
+    sw t0, 48(sp)   # original 12
+    sw t0, 112(sp)  # working 12
 
-    # nonce 
-    lw s9, 0(a1)
-    lw s10, 4(a1)
-    lw s11, 8(a1)
+    # nonce
+    lw t0, 0(a1)
+    sw t0, 52(sp)   # original 13
+    sw t0, 116(sp)  # working 13
 
-    # estado original
-    sw a4, 24(sp)
-    sw a5, 28(sp)
-    sw a6, 32(sp)
-    sw a7, 36(sp)
-    sw s0, 40(sp)
-    sw s1, 44(sp)
-    sw s2, 48(sp)
-    sw s3, 52(sp)
-    sw s4, 56(sp)
-    sw s5, 60(sp)
-    sw s6, 64(sp)
-    sw s7, 68(sp)
-    sw s8, 72(sp)
-    sw s9, 76(sp)
-    sw s10, 80(sp)
-    sw s11, 84(sp)
+    lw t0, 4(a1)
+    sw t0, 56(sp)   # original 14
+    sw t0, 120(sp)  # working 14
+
+    lw t0, 8(a1)
+    sw t0, 60(sp)   # original 15
+    sw t0, 124(sp)  # working 15
+
+    # contador de loop_rounds
+    li s1, 10
+
+    # guardar buffer de salida
+    mv t0, a3
+    sw t0, 132(sp)
 
 loop_rounds:
-
-    # Iteracion de rounds
-    mv a0, a4
-    mv a1, s0
-    mv a2, s4
-    mv a3, s8
+    # columnas
+    lw a0, 64(sp)
+    lw a1, 80(sp)
+    lw a2, 96(sp)
+    lw a3, 112(sp)
     jal ra, quarter_round
-    mv a4, a0
-    mv s0, a1
-    mv s4, a2
-    mv s8, a3
+    sw a0, 64(sp)
+    sw a1, 80(sp)
+    sw a2, 96(sp)
+    sw a3, 112(sp)
 
-   
-    mv a0, a5
-    mv a1, s1
-    mv a2, s5
-    mv a3, s9
+    lw a0, 68(sp)
+    lw a1, 84(sp)
+    lw a2, 100(sp)
+    lw a3, 116(sp)
     jal ra, quarter_round
-    mv a5, a0
-    mv s1, a1
-    mv s5, a2
-    mv s9, a3
+    sw a0, 68(sp)
+    sw a1, 84(sp)
+    sw a2, 100(sp)
+    sw a3, 116(sp)
 
-    
-    mv a0, a6
-    mv a1, s2
-    mv a2, s6
-    mv a3, s10
+    lw a0, 72(sp)
+    lw a1, 88(sp)
+    lw a2, 104(sp)
+    lw a3, 120(sp)
     jal ra, quarter_round
-    mv a6, a0
-    mv s2, a1
-    mv s6, a2
-    mv s10, a3
+    sw a0, 72(sp)
+    sw a1, 88(sp)
+    sw a2, 104(sp)
+    sw a3, 120(sp)
 
-   
-    mv a0, a7
-    mv a1, s3
-    mv a2, s7
-    mv a3, s11
+    lw a0, 76(sp)
+    lw a1, 92(sp)
+    lw a2, 108(sp)
+    lw a3, 124(sp)
     jal ra, quarter_round
-    mv a7, a0
-    mv s3, a1
-    mv s7, a2
-    mv s11, a3
+    sw a0, 76(sp)
+    sw a1, 92(sp)
+    sw a2, 108(sp)
+    sw a3, 124(sp)
 
-  
-    mv a0, a4
-    mv a1, s1
-    mv a2, s6
-    mv a3, s11
+    # diagonales
+    lw a0, 64(sp)
+    lw a1, 84(sp)
+    lw a2, 104(sp)
+    lw a3, 124(sp)
     jal ra, quarter_round
-    mv a4, a0
-    mv s1, a1
-    mv s6, a2
-    mv s11, a3
+    sw a0, 64(sp)
+    sw a1, 84(sp)
+    sw a2, 104(sp)
+    sw a3, 124(sp)
 
-   
-    mv a0, a5
-    mv a1, s2
-    mv a2, s7
-    mv a3, s8
+    lw a0, 68(sp)
+    lw a1, 88(sp)
+    lw a2, 108(sp)
+    lw a3, 112(sp)
     jal ra, quarter_round
-    mv a5, a0
-    mv s2, a1
-    mv s7, a2
-    mv s8, a3
+    sw a0, 68(sp)
+    sw a1, 88(sp)
+    sw a2, 108(sp)
+    sw a3, 112(sp)
 
-   
-    mv a0, a6
-    mv a1, s3
-    mv a2, s4
-    mv a3, s9
+    lw a0, 72(sp)
+    lw a1, 92(sp)
+    lw a2, 96(sp)
+    lw a3, 116(sp)
     jal ra, quarter_round
-    mv a6, a0
-    mv s3, a1
-    mv s4, a2
-    mv s9, a3
+    sw a0, 72(sp)
+    sw a1, 92(sp)
+    sw a2, 96(sp)
+    sw a3, 116(sp)
 
-    
-    mv a0, a7
-    mv a1, s0
-    mv a2, s5
-    mv a3, s10
+    lw a0, 76(sp)
+    lw a1, 80(sp)
+    lw a2, 100(sp)
+    lw a3, 120(sp)
     jal ra, quarter_round
-    mv a7, a0
-    mv s0, a1
-    mv s5, a2
-    mv s10, a3
+    sw a0, 76(sp)
+    sw a1, 80(sp)
+    sw a2, 100(sp)
+    sw a3, 120(sp)
 
-    addi t6, t6, -1
-    bnez t6, loop_rounds
+    addi s1, s1, -1
+    bnez s1, loop_rounds
 
-    # suma final 
+    # suma final
+    lw t0, 0(sp)
+    lw t1, 64(sp)
+    add t1, t1, t0
+    sw t1, 64(sp)
+
+    lw t0, 4(sp)
+    lw t1, 68(sp)
+    add t1, t1, t0
+    sw t1, 68(sp)
+
+    lw t0, 8(sp)
+    lw t1, 72(sp)
+    add t1, t1, t0
+    sw t1, 72(sp)
+
+    lw t0, 12(sp)
+    lw t1, 76(sp)
+    add t1, t1, t0
+    sw t1, 76(sp)
+
+    lw t0, 16(sp)
+    lw t1, 80(sp)
+    add t1, t1, t0
+    sw t1, 80(sp)
+
+    lw t0, 20(sp)
+    lw t1, 84(sp)
+    add t1, t1, t0
+    sw t1, 84(sp)
+
     lw t0, 24(sp)
-    add a4, a4, t0
+    lw t1, 88(sp)
+    add t1, t1, t0
+    sw t1, 88(sp)
+
     lw t0, 28(sp)
-    add a5, a5, t0
+    lw t1, 92(sp)
+    add t1, t1, t0
+    sw t1, 92(sp)
+
     lw t0, 32(sp)
-    add a6, a6, t0
+    lw t1, 96(sp)
+    add t1, t1, t0
+    sw t1, 96(sp)
+
     lw t0, 36(sp)
-    add a7, a7, t0
+    lw t1, 100(sp)
+    add t1, t1, t0
+    sw t1, 100(sp)
 
     lw t0, 40(sp)
-    add s0, s0, t0
+    lw t1, 104(sp)
+    add t1, t1, t0
+    sw t1, 104(sp)
+
     lw t0, 44(sp)
-    add s1, s1, t0
+    lw t1, 108(sp)
+    add t1, t1, t0
+    sw t1, 108(sp)
+
     lw t0, 48(sp)
-    add s2, s2, t0
+    lw t1, 112(sp)
+    add t1, t1, t0
+    sw t1, 112(sp)
+
     lw t0, 52(sp)
-    add s3, s3, t0
+    lw t1, 116(sp)
+    add t1, t1, t0
+    sw t1, 116(sp)
 
     lw t0, 56(sp)
-    add s4, s4, t0
+    lw t1, 120(sp)
+    add t1, t1, t0
+    sw t1, 120(sp)
+
     lw t0, 60(sp)
-    add s5, s5, t0
+    lw t1, 124(sp)
+    add t1, t1, t0
+    sw t1, 124(sp)
+
+    # escribir keystream en el buffer de salida
+    lw t2, 132(sp)
+
     lw t0, 64(sp)
-    add s6, s6, t0
+    sw t0, 0(t2)
+
     lw t0, 68(sp)
-    add s7, s7, t0
+    sw t0, 4(t2)
 
     lw t0, 72(sp)
-    add s8, s8, t0
+    sw t0, 8(t2)
+
     lw t0, 76(sp)
-    add s9, s9, t0
+    sw t0, 12(t2)
+
     lw t0, 80(sp)
-    add s10, s10, t0
+    sw t0, 16(t2)
+
     lw t0, 84(sp)
-    add s11, s11, t0
+    sw t0, 20(t2)
 
-    # escribir keystream completo 
     lw t0, 88(sp)
+    sw t0, 24(t2)
 
-    sw a4,   0(t0)
-    sw a5,   4(t0)
-    sw a6,   8(t0)
-    sw a7,  12(t0)
-    sw s0,  16(t0)
-    sw s1,  20(t0)
-    sw s2,  24(t0)
-    sw s3,  28(t0)
-    sw s4,  32(t0)
-    sw s5,  36(t0)
-    sw s6,  40(t0)
-    sw s7,  44(t0)
-    sw s8,  48(t0)
-    sw s9,  52(t0)
-    sw s10, 56(t0)
-    sw s11, 60(t0)
+    lw t0, 92(sp)
+    sw t0, 28(t2)
 
+    lw t0, 96(sp)
+    sw t0, 32(t2)
 
-    lw a0, 88(sp)
+    lw t0, 100(sp)
+    sw t0, 36(t2)
 
-    #restaurar registros
-    lw s11, 92(sp)
-    lw s10, 96(sp)
-    lw s9, 100(sp)
-    lw s8, 104(sp)
-    lw s7, 108(sp)
-    lw s6, 112(sp)
-    lw s5, 116(sp)
-    lw s4, 120(sp)
-    lw s3, 124(sp)
-    lw s2, 128(sp)
-    lw s1, 132(sp)
-    lw s0, 136(sp)
+    lw t0, 104(sp)
+    sw t0, 40(t2)
+
+    lw t0, 108(sp)
+    sw t0, 44(t2)
+
+    lw t0, 112(sp)
+    sw t0, 48(t2)
+
+    lw t0, 116(sp)
+    sw t0, 52(t2)
+
+    lw t0, 120(sp)
+    sw t0, 56(t2)
+
+    lw t0, 124(sp)
+    sw t0, 60(t2)
+
+    # devolver puntero de salida en a0
+    lw a0, 132(sp)
+
+    # restaurar registros
+    lw s1, 136(sp)
     lw ra, 140(sp)
     addi sp, sp, 144
     ret
-
 
 
 
