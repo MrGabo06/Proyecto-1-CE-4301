@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 extern void block(const uint32_t *key, const uint32_t *nonce, uint32_t counter, uint32_t *out);
+extern uint32_t strlen(const char *str);
 
 #define UART_BASE 0x10000000UL
 #define UART_RBR 0
@@ -136,6 +137,29 @@ void print_hex32(uint32_t value)
     }
 }
 
+void print_uint32(uint32_t value)
+{
+    char buffer[10];
+    int i = 0;
+
+    if (value == 0)
+    {
+        print_char('0');
+        return;
+    }
+
+    while (value > 0)
+    {
+        buffer[i++] = (char)('0' + (value % 10));
+        value /= 10;
+    }
+
+    while (i > 0)
+    {
+        print_char(buffer[--i]);
+    }
+}
+
 int parse_hex_bytes_exact(const char *str, uint8_t *out, int expected_bytes)
 {
     int i = 0;
@@ -251,12 +275,37 @@ void print_keystream(uint32_t out[16])
     }
 }
 
+void run_strlen_tests()
+{
+    const char *test1 = "hola";
+    const char *test2 = "ChaCha20";
+    uint32_t len1;
+    uint32_t len2;
+
+    print_string("Pruebas de strlen:");
+    print_newline();
+
+    len1 = strlen(test1);
+    print_string("Caso 1 -> texto: \"hola\" | esperado: 4 | obtenido: ");
+    print_uint32(len1);
+    print_newline();
+
+    len2 = strlen(test2);
+    print_string("Caso 2 -> texto: \"ChaCha20\" | esperado: 8 | obtenido: ");
+    print_uint32(len2);
+    print_newline();
+
+    print_newline();
+}
+
 void main()
 {
     uint32_t key[8];
     uint32_t nonce[3];
     uint32_t counter;
     uint32_t keystream[16];
+
+    run_strlen_tests();
 
     print_string("Prueba de block");
     print_newline();

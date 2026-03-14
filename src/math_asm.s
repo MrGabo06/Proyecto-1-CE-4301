@@ -1,6 +1,7 @@
 .section .text
 .globl block
 .globl quarter_round
+.globl strlen
 
 
 quarter_round:
@@ -355,6 +356,40 @@ loop_rounds:
     lw ra, 140(sp)
     addi sp, sp, 144
     ret
+
+
+strlen:
+    #reservar
+    addi sp, sp, -16
+    sw ra, 12(sp)
+    sw t0, 8(sp)
+    sw t1, 4(sp)
+    sw t2, 0(sp)
+
+    mv t0, a0
+    li t1, 0
+
+strloop:
+    lb t2, 0(t0)
+    beq t2, zero, strdone
+    addi t1, t1, 1
+    addi t0, t0, 1
+    j strloop
+
+strdone:
+    #restaurar registros y retorno
+    mv a0, t1
+
+    lw t2, 0(sp)
+    lw t1, 4(sp)
+    lw t0, 8(sp)
+    lw ra, 12(sp)
+    addi sp, sp, 16
+    ret
+
+
+
+
 
 
 
