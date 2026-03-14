@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-extern void quarter_round(void);
+extern void block(const uint32_t *key, const uint32_t *nonce, uint32_t counter, uint32_t *out);
 
 #define UART_BASE 0x10000000UL
 #define UART_RBR 0
@@ -12,14 +12,6 @@ extern void quarter_round(void);
 
 static volatile unsigned char *const uart =
     (volatile unsigned char *)UART_BASE;
-
-typedef struct
-{
-    uint32_t a;
-    uint32_t b;
-    uint32_t c;
-    uint32_t d;
-} quarter_round_result_t;
 
 void print_char(char c)
 {
@@ -94,7 +86,12 @@ int hex_value(char c)
         return 10 + (c - 'a');
     if (c >= 'A' && c <= 'F')
         return 10 + (c - 'A');
-    return 0;
+    return -1;
+}
+
+int is_separator(char c)
+{
+    return (c == ' ' || c == '\t' || c == ':' || c == '-' || c == ',');
 }
 
 uint32_t parse_hex32(const char *str)
@@ -109,7 +106,11 @@ uint32_t parse_hex32(const char *str)
 
     while (str[i] != '\0')
     {
-        value = (value << 4) | (uint32_t)hex_value(str[i]);
+        int hv = hex_value(str[i]);
+        if (hv >= 0)
+        {
+            value = (value << 4) | (uint32_t)hv;
+        }
         i++;
     }
 
@@ -135,55 +136,143 @@ void print_hex32(uint32_t value)
     }
 }
 
-quarter_round_result_t call_quarter_round(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+int parse_hex_bytes_exact(const char *str, uint8_t *out, int expected_bytes)
 {
-    register uint32_t reg_a0 asm("a0") = a;
-    register uint32_t reg_a1 asm("a1") = b;
-    register uint32_t reg_a2 asm("a2") = c;
-    register uint32_t reg_a3 asm("a3") = d;
+    int i = 0;
+    int out_index = 0;
+    int high_nibble = -1;
 
-    asm volatile(
-        "call quarter_round"
-        : "+r"(reg_a0), "+r"(reg_a1), "+r"(reg_a2), "+r"(reg_a3)
-        :
-        : "ra", "memory");
+    while (str[i] != '\0')
+    {
+        if (is_separator(str[i]))
+        {
+            i++;
+            continue;
+        }
 
-    quarter_round_result_t out;
-    out.a = reg_a0;
-    out.b = reg_a1;
-    out.c = reg_a2;
-    out.d = reg_a3;
+        if (str[i] == '0' && (str[i + 1] == 'x' || str[i + 1] == 'X'))
+        {
+            i += 2;
+            continue;
+        }
 
-    return out;
+        int hv = hex_value(str[i]);
+        if (hv < 0)
+        {
+            return 0;
+        }
+
+        if (high_nibble < 0)
+        {
+            high_nibble = hv;
+        }
+        else
+        {
+            if (out_index >= expected_bytes)
+            {
+                return 0;
+            }
+
+            out[out_index++] = (uint8_t)((high_nibble << 4) | hv);
+            high_nibble = -1;
+        }
+
+        i++;
+    }
+
+    if (high_nibble >= 0)
+    {
+        return 0;
+    }
+
+    return (out_index == expected_bytes);
+}
+
+void bytes_to_words_le(const uint8_t *bytes, uint32_t *words, int word_count)
+{
+    for (int i = 0; i < word_count; i++)
+    {
+        words[i] =
+            ((uint32_t)bytes[i * 4 + 0]) |
+            ((uint32_t)bytes[i * 4 + 1] << 8) |
+            ((uint32_t)bytes[i * 4 + 2] << 16) |
+            ((uint32_t)bytes[i * 4 + 3] << 24);
+    }
+}
+
+void read_key(uint32_t key[8])
+{
+    char buffer[128];
+    uint8_t key_bytes[32];
+
+    while (1)
+    {
+        print_string("key: ");
+        read_line(buffer, sizeof(buffer));
+
+        if (parse_hex_bytes_exact(buffer, key_bytes, 32))
+        {
+            bytes_to_words_le(key_bytes, key, 8);
+            return;
+        }
+
+        print_string("Entrada invalida. Debe tener exactamente 32 bytes en hexadecimal.");
+        print_newline();
+    }
+}
+
+void read_nonce(uint32_t nonce[3])
+{
+    char buffer[64];
+    uint8_t nonce_bytes[12];
+
+    while (1)
+    {
+        print_string("nonce: ");
+        read_line(buffer, sizeof(buffer));
+
+        if (parse_hex_bytes_exact(buffer, nonce_bytes, 12))
+        {
+            bytes_to_words_le(nonce_bytes, nonce, 3);
+            return;
+        }
+
+        print_string("Entrada invalida. Debe tener exactamente 12 bytes en hexadecimal.");
+        print_newline();
+    }
+}
+
+void print_keystream(uint32_t out[16])
+{
+    for (int i = 0; i < 16; i++)
+    {
+        print_hex32(out[i]);
+        print_newline();
+    }
 }
 
 void main()
 {
-    uint32_t a = read_hex32("a: ");
-    uint32_t b = read_hex32("b: ");
-    uint32_t c = read_hex32("c: ");
-    uint32_t d = read_hex32("d: ");
+    uint32_t key[8];
+    uint32_t nonce[3];
+    uint32_t counter;
+    uint32_t keystream[16];
 
-    quarter_round_result_t qr = call_quarter_round(a, b, c, d);
+    print_string("Prueba de block");
     print_newline();
-    print_string("Resultado:------------------------------------------------- ");
-    print_newline();
-
-    print_string("a: ");
-    print_hex32(qr.a);
+    print_string("Ingrese los datos en hexadecimal.");
     print_newline();
 
-    print_string("b: ");
-    print_hex32(qr.b);
-    print_newline();
+    read_key(key);
+    read_nonce(nonce);
+    counter = read_hex32("counter: ");
 
-    print_string("c: ");
-    print_hex32(qr.c);
-    print_newline();
+    block(key, nonce, counter, keystream);
 
-    print_string("d: ");
-    print_hex32(qr.d);
     print_newline();
+    print_string("Keystream completo:");
+    print_newline();
+    print_keystream(keystream);
 
     while (1)
     {
