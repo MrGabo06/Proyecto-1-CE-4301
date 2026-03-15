@@ -1,6 +1,7 @@
 .section .text
 .globl block
 .globl quarter_round
+.globl chacha20_encrypt
 
 
 quarter_round:
@@ -355,6 +356,204 @@ loop_rounds:
     lw ra, 140(sp)
     addi sp, sp, 144
     ret
+
+
+chacha20_encrypt:
+    # reservar memoria
+    addi sp, sp, -144
+    sw ra, 140(sp)
+    sw s2, 136(sp)
+    sw s3, 132(sp)
+    sw s4, 128(sp)
+    sw s5, 124(sp)
+    sw s6, 120(sp)
+    sw s7, 116(sp)
+    sw s8, 112(sp)
+
+    # guardar key, nonce, counter, plaintext y out
+    mv s4, a0
+    mv s5, a1
+    mv s6, a2
+    mv s7, a3
+    mv s8, a5
+
+    # calcular cantidad de loops
+    mv t0, a4
+    li t1, 64
+    div s2, t0, t1  # cantidad de loops de bloques completos
+    rem s3, t0, t1  # cantidad de loops en el bloque incompleto
+    
+
+complete_block_loop:
+    mv a0, s4
+    mv a1, s5
+    mv a2, s6
+    mv a3, s8
+    jal ra, block
+
+    mv t0, a0
+    lw t1, 0(t0)
+    lw t2, 0(s7)
+    xor t3, t1, t2
+    sw t3, 0(s8)
+
+    mv t0, a0
+    lw t1, 4(t0)
+    lw t2, 4(s7)
+    xor t3, t1, t2
+    sw t3, 4(s8)
+
+    mv t0, a0
+    lw t1, 8(t0)
+    lw t2, 8(s7)
+    xor t3, t1, t2
+    sw t3, 8(s8)
+
+    mv t0, a0
+    lw t1, 12(t0)
+    lw t2, 12(s7)
+    xor t3, t1, t2
+    sw t3, 12(s8)
+
+    mv t0, a0
+    lw t1, 16(t0)
+    lw t2, 16(s7)
+    xor t3, t1, t2
+    sw t3, 16(s8)
+
+    mv t0, a0
+    lw t1, 20(t0)
+    lw t2, 20(s7)
+    xor t3, t1, t2
+    sw t3, 20(s8)
+
+    mv t0, a0
+    lw t1, 24(t0)
+    lw t2, 24(s7)
+    xor t3, t1, t2
+    sw t3, 24(s8)
+
+    mv t0, a0
+    lw t1, 28(t0)
+    lw t2, 28(s7)
+    xor t3, t1, t2
+    sw t3, 28(s8)
+
+    mv t0, a0
+    lw t1, 32(t0)
+    lw t2, 32(s7)
+    xor t3, t1, t2
+    sw t3, 32(s8)
+
+    mv t0, a0
+    lw t1, 36(t0)
+    lw t2, 36(s7)
+    xor t3, t1, t2
+    sw t3, 36(s8)
+
+    mv t0, a0
+    lw t1, 40(t0)
+    lw t2, 40(s7)
+    xor t3, t1, t2
+    sw t3, 40(s8)
+
+    mv t0, a0
+    lw t1, 44(t0)
+    lw t2, 44(s7)
+    xor t3, t1, t2
+    sw t3, 44(s8)
+
+    mv t0, a0
+    lw t1, 48(t0)
+    lw t2, 48(s7)
+    xor t3, t1, t2
+    sw t3, 48(s8)
+
+    mv t0, a0
+    lw t1, 52(t0)
+    lw t2, 52(s7)
+    xor t3, t1, t2
+    sw t3, 52(s8)
+
+    mv t0, a0
+    lw t1, 56(t0)
+    lw t2, 56(s7)
+    xor t3, t1, t2
+    sw t3, 56(s8)
+
+    mv t0, a0
+    lw t1, 60(t0)
+    lw t2, 60(s7)
+    xor t3, t1, t2
+    sw t3, 60(s8)
+
+    mv a0, s4
+    mv a1, s5
+    addi s6, s6, 1
+    mv a2, s6
+    addi s8, s8, 64
+    addi s7, s7, 64
+    addi s2, s2, -1
+    bnez s2, complete_block_loop
+
+
+    # verifica si hay bytes sueltos
+    beq s3, zero, end_encrypt
+
+last_block:
+    mv a0, s4
+    mv a1, s5
+    mv a2, s6
+    addi t0, sp, 0
+    mv a3, t0
+    jal ra, block
+    mv t0, a0        
+
+block_incomplete_loop:
+    lbu t1, 0(t0)
+    lbu t2, 0(s7)
+    xor t3, t1, t2
+    sb t3, 0(s8)
+
+    addi t0, t0, 1
+    addi s7, s7, 1
+    addi s8, s8, 1
+    addi s3, s3, -1
+    bnez s3, block_incomplete_loop
+
+end_encrypt:
+    # devolver puntero al plaintext copiado
+    mv a0, s8
+
+    # restaurar registros
+    lw s8, 112(sp)
+    lw s7, 116(sp)
+    lw s6, 120(sp)
+    lw s5, 124(sp)
+    lw s4, 128(sp)
+    lw s3, 132(sp)
+    lw s2, 136(sp)
+    lw ra, 140(sp)
+    addi sp, sp, 144
+    ret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

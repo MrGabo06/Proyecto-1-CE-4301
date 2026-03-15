@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-extern void block(const uint32_t *key, const uint32_t *nonce, uint32_t counter, uint32_t *out);
+extern uint8_t *chacha20_encrypt(const uint32_t *key, const uint32_t *nonce, uint32_t counter, const uint8_t *plaintext, uint32_t len, uint8_t *out);
 
 #define UART_BASE 0x10000000UL
 #define UART_RBR 0
@@ -125,14 +125,33 @@ uint32_t read_hex32(const char *prompt)
     return parse_hex32(buffer);
 }
 
-void print_hex32(uint32_t value)
+void print_hex8(uint8_t value)
 {
     const char *hex = "0123456789abcdef";
+    print_char(hex[(value >> 4) & 0xF]);
+    print_char(hex[value & 0xF]);
+}
 
-    for (int i = 7; i >= 0; i--)
+void print_uint32(uint32_t value)
+{
+    char buffer[10];
+    int i = 0;
+
+    if (value == 0)
     {
-        uint32_t nibble = (value >> (i * 4)) & 0xF;
-        print_char(hex[nibble]);
+        print_char('0');
+        return;
+    }
+
+    while (value > 0)
+    {
+        buffer[i++] = (char)('0' + (value % 10));
+        value /= 10;
+    }
+
+    while (i > 0)
+    {
+        print_char(buffer[--i]);
     }
 }
 
@@ -242,11 +261,52 @@ void read_nonce(uint32_t nonce[3])
     }
 }
 
-void print_keystream(uint32_t out[16])
+uint32_t string_length(const char *str)
 {
-    for (int i = 0; i < 16; i++)
+    uint32_t len = 0;
+
+    while (str[len] != '\0')
     {
-        print_hex32(out[i]);
+        len++;
+    }
+
+    return len;
+}
+
+void print_buffer_hex(const uint8_t *buffer, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++)
+    {
+        print_hex8(buffer[i]);
+        if (i + 1 < len)
+        {
+            print_char(' ');
+        }
+    }
+    print_newline();
+}
+
+int ask_continue(void)
+{
+    char buffer[8];
+
+    while (1)
+    {
+        print_newline();
+        print_string("Desea continuar? (y/n): ");
+        read_line(buffer, sizeof(buffer));
+
+        if (buffer[0] == 'y' || buffer[0] == 'Y')
+        {
+            return 1;
+        }
+
+        if (buffer[0] == 'n' || buffer[0] == 'N')
+        {
+            return 0;
+        }
+
+        print_string("Entrada invalida. Use y o n.");
         print_newline();
     }
 }
@@ -256,23 +316,55 @@ void main()
     uint32_t key[8];
     uint32_t nonce[3];
     uint32_t counter;
-    uint32_t keystream[16];
 
-    print_string("Prueba de block");
-    print_newline();
-    print_string("Ingrese los datos en hexadecimal.");
-    print_newline();
+    uint8_t plaintext[256];
+    uint8_t ciphertext[256];
+    uint8_t decrypted[256];
 
-    read_key(key);
-    read_nonce(nonce);
-    counter = read_hex32("counter: ");
+    uint32_t len;
 
-    block(key, nonce, counter, keystream);
+    while (1)
+    {
+        print_string("Prueba de chacha20_encrypt");
+        print_newline();
+        print_string("Ingrese los datos.");
+        print_newline();
 
-    print_newline();
-    print_string("Keystream completo:");
-    print_newline();
-    print_keystream(keystream);
+        read_key(key);
+        read_nonce(nonce);
+        counter = read_hex32("counter: ");
+
+        print_string("plaintext: ");
+        read_line((char *)plaintext, sizeof(plaintext));
+
+        len = string_length((const char *)plaintext);
+
+        chacha20_encrypt(key, nonce, counter, plaintext, len, ciphertext);
+
+        print_newline();
+        print_string("Ciphertext (hex):");
+        print_newline();
+        print_buffer_hex(ciphertext, len);
+
+        chacha20_encrypt(key, nonce, counter, ciphertext, len, decrypted);
+        decrypted[len] = '\0';
+
+        print_newline();
+        print_string("Texto recuperado:");
+        print_newline();
+        print_string((const char *)decrypted);
+        print_newline();
+
+        if (!ask_continue())
+        {
+            print_newline();
+            print_string("Programa finalizado.");
+            print_newline();
+            break;
+        }
+
+        print_newline();
+    }
 
     while (1)
     {
