@@ -382,6 +382,9 @@ chacha20_encrypt:
     li t1, 64
     div s2, t0, t1  # cantidad de loops de bloques completos
     rem s3, t0, t1  # cantidad de loops en el bloque incompleto
+
+    # verifica si el bloque que viene esta completo
+    beq s2, zero, check_incomplete
     
 
 complete_block_loop:
@@ -498,6 +501,7 @@ complete_block_loop:
 
 
     # verifica si hay bytes sueltos
+check_incomplete:
     beq s3, zero, end_encrypt
 
 last_block:
