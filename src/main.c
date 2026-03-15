@@ -1,7 +1,6 @@
 #include <stdint.h>
 
-extern void block(const uint32_t *key, const uint32_t *nonce, uint32_t counter, uint32_t *out);
-extern uint32_t strlen(const char *str);
+extern uint8_t *chacha20_encrypt(const uint32_t *key, const uint32_t *nonce, uint32_t counter, const uint8_t *plaintext, uint32_t len, uint8_t *out);
 
 #define UART_BASE 0x10000000UL
 #define UART_RBR 0
@@ -126,15 +125,11 @@ uint32_t read_hex32(const char *prompt)
     return parse_hex32(buffer);
 }
 
-void print_hex32(uint32_t value)
+void print_hex8(uint8_t value)
 {
     const char *hex = "0123456789abcdef";
-
-    for (int i = 7; i >= 0; i--)
-    {
-        uint32_t nibble = (value >> (i * 4)) & 0xF;
-        print_char(hex[nibble]);
-    }
+    print_char(hex[(value >> 4) & 0xF]);
+    print_char(hex[value & 0xF]);
 }
 
 void print_uint32(uint32_t value)
@@ -266,36 +261,54 @@ void read_nonce(uint32_t nonce[3])
     }
 }
 
-void print_keystream(uint32_t out[16])
+uint32_t string_length(const char *str)
 {
-    for (int i = 0; i < 16; i++)
+    uint32_t len = 0;
+
+    while (str[len] != '\0')
     {
-        print_hex32(out[i]);
-        print_newline();
+        len++;
     }
+
+    return len;
 }
 
-void run_strlen_tests()
+void print_buffer_hex(const uint8_t *buffer, uint32_t len)
 {
-    const char *test1 = "hola";
-    const char *test2 = "ChaCha20";
-    uint32_t len1;
-    uint32_t len2;
-
-    print_string("Pruebas de strlen:");
+    for (uint32_t i = 0; i < len; i++)
+    {
+        print_hex8(buffer[i]);
+        if (i + 1 < len)
+        {
+            print_char(' ');
+        }
+    }
     print_newline();
+}
 
-    len1 = strlen(test1);
-    print_string("Caso 1 -> texto: \"hola\" | esperado: 4 | obtenido: ");
-    print_uint32(len1);
-    print_newline();
+int ask_continue(void)
+{
+    char buffer[8];
 
-    len2 = strlen(test2);
-    print_string("Caso 2 -> texto: \"ChaCha20\" | esperado: 8 | obtenido: ");
-    print_uint32(len2);
-    print_newline();
+    while (1)
+    {
+        print_newline();
+        print_string("Desea continuar? (y/n): ");
+        read_line(buffer, sizeof(buffer));
 
-    print_newline();
+        if (buffer[0] == 'y' || buffer[0] == 'Y')
+        {
+            return 1;
+        }
+
+        if (buffer[0] == 'n' || buffer[0] == 'N')
+        {
+            return 0;
+        }
+
+        print_string("Entrada invalida. Use y o n.");
+        print_newline();
+    }
 }
 
 void main()
@@ -303,25 +316,55 @@ void main()
     uint32_t key[8];
     uint32_t nonce[3];
     uint32_t counter;
-    uint32_t keystream[16];
 
-    run_strlen_tests();
+    uint8_t plaintext[256];
+    uint8_t ciphertext[256];
+    uint8_t decrypted[256];
 
-    print_string("Prueba de block");
-    print_newline();
-    print_string("Ingrese los datos en hexadecimal.");
-    print_newline();
+    uint32_t len;
 
-    read_key(key);
-    read_nonce(nonce);
-    counter = read_hex32("counter: ");
+    while (1)
+    {
+        print_string("Prueba de chacha20_encrypt");
+        print_newline();
+        print_string("Ingrese los datos.");
+        print_newline();
 
-    block(key, nonce, counter, keystream);
+        read_key(key);
+        read_nonce(nonce);
+        counter = read_hex32("counter: ");
 
-    print_newline();
-    print_string("Keystream completo:");
-    print_newline();
-    print_keystream(keystream);
+        print_string("plaintext: ");
+        read_line((char *)plaintext, sizeof(plaintext));
+
+        len = string_length((const char *)plaintext);
+
+        chacha20_encrypt(key, nonce, counter, plaintext, len, ciphertext);
+
+        print_newline();
+        print_string("Ciphertext (hex):");
+        print_newline();
+        print_buffer_hex(ciphertext, len);
+
+        chacha20_encrypt(key, nonce, counter, ciphertext, len, decrypted);
+        decrypted[len] = '\0';
+
+        print_newline();
+        print_string("Texto recuperado:");
+        print_newline();
+        print_string((const char *)decrypted);
+        print_newline();
+
+        if (!ask_continue())
+        {
+            print_newline();
+            print_string("Programa finalizado.");
+            print_newline();
+            break;
+        }
+
+        print_newline();
+    }
 
     while (1)
     {
