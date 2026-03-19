@@ -1,6 +1,6 @@
 # Implementación de ChaCha20 en RISC-V con QEMU y GDB
 
-Este proyecto implementa el algoritmo **ChaCha20** en ensamblador **RISC-V de 32 bits**, integrado con un programa principal en **C** para realizar pruebas interactivas en un entorno **bare-metal**, usando **QEMU**, **GDB** y **Docker**.
+Este proyecto implementa el algoritmo **ChaCha20** en ensamblador **RISC-V de 32 bits**, integrado con un programa principal en **C** para ejecutar pruebas en un entorno **bare-metal**, usando **QEMU**, **GDB** y **Docker**.
 
 ---
 
@@ -28,7 +28,7 @@ Este proyecto implementa el algoritmo **ChaCha20** en ensamblador **RISC-V de 32
 
 `src/` contiene el código fuente del proyecto.
 
-`main.c` implementa la interacción por UART y llama a la función `chacha20_encrypt`.
+`main.c` implementa la salida por UART, define los vectores de prueba y llama a las funciones `quarter_round`, `block` y `chacha20_encrypt`.
 
 `math_asm.s` contiene la implementación en ensamblador de `quarter_round`, `block` y `chacha20_encrypt`.
 
@@ -42,7 +42,19 @@ Este proyecto implementa el algoritmo **ChaCha20** en ensamblador **RISC-V de 32
 
 `docs/` contiene la documentación y capturas de depuración.
 
-## 2. Descripción general
+## 2. Requisitos previos
+
+Antes de ejecutar el proyecto, se requiere contar con:
+
+- **Docker** instalado y funcionando correctamente.
+- Permisos para ejecutar contenedores Docker.
+- `make` instalado para usar las reglas del `Makefile`.
+- Un sistema Linux o un entorno compatible con Docker.
+- Conexión a internet la primera vez, para construir o descargar la imagen base del contenedor.
+
+El **toolchain de RISC-V** y **QEMU** no necesitan instalarse manualmente en la máquina host, ya que ambos se configuran dentro del contenedor definido en el `Dockerfile`.
+
+## 3. Descripción general
 
 El proyecto implementa las operaciones principales del algoritmo **ChaCha20**:
 
@@ -50,41 +62,81 @@ El proyecto implementa las operaciones principales del algoritmo **ChaCha20**:
 - `block`
 - `chacha20_encrypt`
 
-El programa principal permite ingresar:
+El programa principal ejecuta vectores de prueba oficiales del **RFC 8439** para validar cada nivel del algoritmo:
 
-- una clave de 256 bits,
-- un nonce de 96 bits,
-- un contador inicial,
-- y un plaintext.
+- pruebas de `quarter_round`,
+- pruebas de `block`,
+- y pruebas de `chacha20_encrypt`.
 
-Luego el programa:
+En cada caso, el programa:
 
-- cifra el mensaje,
-- muestra el ciphertext en hexadecimal,
-- vuelve a aplicar `chacha20_encrypt` al ciphertext,
-- y verifica que se recupere el texto original.
+- muestra los datos de entrada,
+- ejecuta la función correspondiente,
+- imprime el resultado obtenido,
+- lo compara con el resultado esperado,
+- y reporta si la prueba fue exitosa.
 
-Esto permite validar manualmente el funcionamiento básico del cifrado y descifrado.
+En las pruebas de `chacha20_encrypt`, además, se vuelve a aplicar la función al ciphertext para verificar que se recupere correctamente el texto original.
 
-## Resumen de uso
+## 4. Compilación y ejecución
 
-- `make start`: construye e inicia el entorno Docker.
-- `make run`: abre una terminal dentro del contenedor.
-- `make build`: compila el proyecto.
-- `make qmu`: ejecuta el programa en QEMU.
-- `make bqmu`: compila y ejecuta en un solo paso.
-- `make dg`: abre una sesión de depuración con GDB.
+```bash
+# compilar
+make build
 
-## 6. Compilación y entorno
+# ejecutar con qemu
+make qmu
 
-El proyecto está diseñado para ejecutarse en un entorno bare-metal RISC-V.
+# en otra terminal, iniciar gdb
+make dg
+```
 
-La compilación se realiza mediante `build.sh`, utilizando una configuración adecuada para este contexto, normalmente con opciones como:
+También puede ejecutarse compilación y ejecución en un solo paso:
 
-- `-march=rv32im`
-- `-mabi=ilp32`
-- `-nostdlib`
-- `-ffreestanding`
-- `-g`
+```bash
+# compilar y ejecutar
+make bqmu
+```
 
-Estas opciones permiten generar un ejecutable compatible con QEMU y con soporte para depuración en GDB.
+## 5. Depuración y entorno
+
+### Depuración con GDB
+
+La depuración se realiza conectando `gdb-multiarch` al servidor remoto que QEMU expone en el puerto `1234`. Esto permite inspeccionar la ejecución de las funciones `quarter_round`, `block` y `chacha20_encrypt`, así como revisar registros y memoria en tiempo real.
+
+Flujo típico de depuración:
+
+```bash
+# en una terminal
+make qmu
+
+# en otra terminal
+make dg
+```
+
+Comandos útiles de GDB:
+
+```gdb
+break _start
+break main
+break quarter_round
+break block
+break chacha20_encrypt
+continue
+step
+info registers
+x/16wx $sp
+continue
+```
+
+### Convenciones de llamada RISC-V
+
+El proyecto sigue la convención estándar de llamadas de RISC-V:
+
+- `a0-a7`: parámetros de entrada y valores de retorno
+- `t0-t6`: registros temporales
+- `s0-s11`: registros preservados
+- `ra`: dirección de retorno
+- `sp`: puntero de pila
+
+Las rutinas en ensamblador respetan estas convenciones guardando en la pila los registros preservados que modifican y restaurándolos antes de retornar. Además, `block` y `chacha20_encrypt` reciben punteros a buffers de salida para escribir sus resultados directamente en memoria, lo que facilita la integración con C.

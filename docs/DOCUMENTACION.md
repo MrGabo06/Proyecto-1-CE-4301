@@ -1,3 +1,37 @@
+## Descripción de la arquitectura del software
+
+La arquitectura se divide en dos capas: una **capa en C** y una **capa en ensamblador RISC-V**.  
+La capa en C se encarga de la interacción con UART, la impresión de resultados, la definición de vectores de prueba y la validación de salidas esperadas. En cambio, la capa en ensamblador implementa la lógica criptográfica de ChaCha20.
+
+
+## Interfaces definidas
+
+La comunicación entre ambas capas se realiza mediante tres funciones externas:
+
+```c
+extern void quarter_round(void);
+extern uint32_t *block(const uint32_t *key, const uint32_t *nonce, uint32_t counter, uint32_t *out);
+extern uint8_t *chacha20_encrypt(const uint32_t *key, const uint32_t *nonce, uint32_t counter,
+                                 const uint8_t *plaintext, uint32_t len, uint8_t *out);
+```
+
+- `quarter_round` implementa la operación básica de ChaCha20 sobre cuatro palabras de 32 bits.
+- `block` construye y procesa el estado completo de 16 palabras para generar un bloque de keystream de 64 bytes.
+- `chacha20_encrypt` usa `block` para cifrar o descifrar mensajes completos mediante XOR con el keystream.
+
+## Justificación de decisiones de diseño
+
+Se usan `uint32_t` en `key`, `nonce`, `counter` y en la salida de `block` porque ChaCha20 trabaja internamente con **palabras de 32 bits**. Esto evita conversiones innecesarias y hace que la interfaz coincida directamente con la estructura del estado del algoritmo.
+
+En cambio, `plaintext`, `ciphertext` y la salida de `chacha20_encrypt` se manejan como `uint8_t`, porque el cifrado final opera sobre **bytes**. Aunque el bloque interno se genera en palabras de 32 bits, el mensaje se procesa byte a byte mediante XOR, por lo que esta representación es la más natural para entrada y salida.
+
+En `quarter_round` se usan registros porque la operación solo requiere cuatro palabras y varias transformaciones rápidas sobre ellas. En `block`, en cambio, se usa memoria en el stack para guardar tanto el **estado original** como el **estado de trabajo**, ya que el algoritmo necesita conservar ambos para la suma final y además manipula 16 palabras, una cantidad mayor a la que resulta práctica mantener únicamente en registros.
+
+También se definieron buffers de salida explícitos en `block` y `chacha20_encrypt` para simplificar la integración con C y evitar depender de múltiples valores de retorno. En `chacha20_encrypt`, además, se reserva espacio temporal en stack para el último bloque incompleto, lo que permite reutilizar la rutina `block` sin duplicar lógica.
+
+## Evidencias de ejecucion
+
+
 ## Mapeo entre estados y registros
 
 En esta implementación, el estado de ChaCha20 de 16 palabras de 32 bits **no se mantiene de forma permanente en registros**. En su lugar, se usa un esquema mixto donde el **estado completo se almacena en memoria (stack)** y únicamente las **4 palabras activas** de cada llamada a `quarter_round` se cargan temporalmente en registros. Esta decisión reduce la presión sobre el banco de registros y simplifica la reutilización de la rutina `quarter_round`.
