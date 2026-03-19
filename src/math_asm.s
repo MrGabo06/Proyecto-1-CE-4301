@@ -360,15 +360,15 @@ loop_rounds:
 
 chacha20_encrypt:
     # reservar memoria
-    addi sp, sp, -144
-    sw ra, 140(sp)
-    sw s2, 136(sp)
-    sw s3, 132(sp)
-    sw s4, 128(sp)
-    sw s5, 124(sp)
-    sw s6, 120(sp)
-    sw s7, 116(sp)
-    sw s8, 112(sp)
+    addi sp, sp, -96
+    sw ra, 92(sp)
+    sw s2, 88(sp)
+    sw s3, 84(sp)
+    sw s4, 80(sp)
+    sw s5, 76(sp)
+    sw s6, 72(sp)
+    sw s7, 68(sp)
+    sw s8, 64(sp)
 
     # guardar key, nonce, counter, plaintext y out
     mv s4, a0
@@ -530,36 +530,14 @@ end_encrypt:
     mv a0, s8
 
     # restaurar registros
-    lw s8, 112(sp)
-    lw s7, 116(sp)
-    lw s6, 120(sp)
-    lw s5, 124(sp)
-    lw s4, 128(sp)
-    lw s3, 132(sp)
-    lw s2, 136(sp)
-    lw ra, 140(sp)
-    addi sp, sp, 144
+    lw s8, 64(sp)
+    lw s7, 68(sp)
+    lw s6, 72(sp)
+    lw s5, 76(sp)
+    lw s4, 80(sp)
+    lw s3, 84(sp)
+    lw s2, 88(sp)
+    lw ra, 92(sp)
+    addi sp, sp, 96
     ret
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
