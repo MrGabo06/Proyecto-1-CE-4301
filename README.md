@@ -1,111 +1,90 @@
-# Entorno de desarrollo RISC-V con QEMU y GDB
+# Implementación de ChaCha20 en RISC-V con QEMU y GDB
 
-Este proyecto proporciona un entorno completo para desarrollo y depuración de programas bare-metal en arquitectura RISC-V de 32 bits, utilizando QEMU y GDB dentro de un contenedor Docker.
+Este proyecto implementa el algoritmo **ChaCha20** en ensamblador **RISC-V de 32 bits**, integrado con un programa principal en **C** para realizar pruebas interactivas en un entorno **bare-metal**, usando **QEMU**, **GDB** y **Docker**.
 
 ---
 
 ## 1. Estructura del proyecto
 
-```
+```text
 .
 ├── Dockerfile
 ├── run.sh
-├── examples/           # Ejemplos de código
-│   ├── asm-only/      # Ejemplo de ensamblador puro
-│   │   ├── test.s
-│   │   ├── linker.ld
-│   │   ├── build.sh
-│   │   └── run-qemu.sh
-│   └── c-asm/         # Ejemplo de C + ensamblador
-│       ├── example.c
-│       ├── math_asm.s
-│       ├── linker.ld
-│       ├── build.sh
-│       └── run-qemu.sh
+├── Makefile
+├── src/
+│   ├── main.c
+│   ├── linker.ld
+│   ├── build.sh
+│   ├── run-qemu.sh
+│   ├── math_asm.s
+│   └── startup.s
+├── docs/
+│   ├── bug_1.png
+│   ├── bug_2.png
+│   ├── bug_3.png
+│   └── DOCUMENTACION.md
 └── README.md
 ```
 
-- `examples/` contiene diferentes ejemplos de programas RISC-V
-- `Dockerfile` define la imagen que incluye el emulador QEMU y el toolchain RISC-V
-- `run.sh` automatiza la construcción de la imagen y la ejecución del contenedor
+`src/` contiene el código fuente del proyecto.
 
-## Ejemplos disponibles
+`main.c` implementa la interacción por UART y llama a la función `chacha20_encrypt`.
 
-### Ensamblador puro (`examples/asm-only/`)
-Programa simple escrito completamente en ensamblador que calcula la suma del 1 al 10.
+`math_asm.s` contiene la implementación en ensamblador de `quarter_round`, `block` y `chacha20_encrypt`.
 
-### C + Ensamblador (`examples/c-asm/`)
-Programa en C que llama funciones escritas en ensamblador, demostrando la integración entre ambos lenguajes. Este ejemplo incluye un archivo de inicio (startup.s) que inicializa la pila y llama a la función main de C, ya que los programas C necesitan un entorno de ejecución básico antes de ejecutar el código principal.
+`startup.s` inicializa el entorno bare-metal antes de ejecutar `main`.
 
----
+`linker.ld` define el mapa de memoria del programa.
 
-## 2. Inicio rápido
+`Dockerfile` define la imagen con QEMU y el toolchain RISC-V.
 
-### Paso 1: Construir el contenedor
-```bash
-chmod +x run.sh
-./run.sh
-```
+`run.sh` automatiza la construcción de la imagen y la ejecución del contenedor.
 
-### Paso 2: Elegir y compilar un ejemplo
-```bash
-# Para el ejemplo de ensamblador puro
-cd /home/rvqemu-dev/workspace/examples/asm-only
-./build.sh
+`docs/` contiene la documentación y capturas de depuración.
 
-# Para el ejemplo de C + ensamblador
-cd /home/rvqemu-dev/workspace/examples/c-asm
-./build.sh
-```
+## 2. Descripción general
 
-### Paso 3: Ejecutar con QEMU y depurar
-```bash
-# En una terminal: iniciar QEMU con servidor GDB
-./run-qemu.sh
+El proyecto implementa las operaciones principales del algoritmo **ChaCha20**:
 
-# En otra terminal: conectar GDB
-docker exec -it rvqemu /bin/bash
-cd /home/rvqemu-dev/workspace/examples/[ejemplo-elegido]
-gdb-multiarch [archivo-elf]
-```
+- `quarter_round`
+- `block`
+- `chacha20_encrypt`
 
----
+El programa principal permite ingresar:
 
-## 3. Uso detallado
+- una clave de 256 bits,
+- un nonce de 96 bits,
+- un contador inicial,
+- y un plaintext.
 
-### Construcción del contenedor
-El script `run.sh` construye la imagen `rvqemu` y crea un contenedor interactivo que monta el directorio del proyecto en `/home/rvqemu-dev/workspace`.
+Luego el programa:
 
-### Compilación
-Cada ejemplo incluye un script `build.sh` que maneja la compilación automáticamente.
+- cifra el mensaje,
+- muestra el ciphertext en hexadecimal,
+- vuelve a aplicar `chacha20_encrypt` al ciphertext,
+- y verifica que se recupere el texto original.
 
-**Opciones de compilación utilizadas**:
-- `-march=rv32im`: arquitectura RISC-V 32 bits con extensiones I y M
-- `-mabi=ilp32`: ABI ILP32
-- `-nostdlib -ffreestanding`: entorno bare-metal
-- `-g`: información de depuración para GDB
+Esto permite validar manualmente el funcionamiento básico del cifrado y descifrado.
 
-### Ejecución y depuración
-1. **QEMU**: `run-qemu.sh` inicia QEMU con servidor GDB en puerto 1234
-2. **GDB**: Conectar desde otra terminal para depuración interactiva
+## Resumen de uso
 
-**Comandos útiles de GDB**:
-```gdb
-target remote :1234    # Conectar al servidor GDB
-break _start           # Punto de ruptura al inicio
-continue               # Continuar ejecución
-layout asm             # Vista de ensamblador
-layout regs            # Vista de registros
-step                   # Ejecutar siguiente instrucción
-info registers         # Mostrar registros
-monitor quit           # Finalizar sesión
-```
+- `make start`: construye e inicia el entorno Docker.
+- `make run`: abre una terminal dentro del contenedor.
+- `make build`: compila el proyecto.
+- `make qmu`: ejecuta el programa en QEMU.
+- `make bqmu`: compila y ejecuta en un solo paso.
+- `make dg`: abre una sesión de depuración con GDB.
 
----
+## 6. Compilación y entorno
 
-## 4. Detalles de los ejemplos
+El proyecto está diseñado para ejecutarse en un entorno bare-metal RISC-V.
 
-Para información específica sobre cada ejemplo, consultar:
-- [`examples/asm-only/README.md`](examples/asm-only/README.md) - Ensamblador puro
-- [`examples/c-asm/README.md`](examples/c-asm/README.md) - C + Ensamblador
-- [`examples/README.md`](examples/README.md) - Información general
+La compilación se realiza mediante `build.sh`, utilizando una configuración adecuada para este contexto, normalmente con opciones como:
+
+- `-march=rv32im`
+- `-mabi=ilp32`
+- `-nostdlib`
+- `-ffreestanding`
+- `-g`
+
+Estas opciones permiten generar un ejecutable compatible con QEMU y con soporte para depuración en GDB.
