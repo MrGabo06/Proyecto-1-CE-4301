@@ -14,6 +14,7 @@ extern uint8_t *chacha20_encrypt(const uint32_t *key, const uint32_t *nonce, uin
 static volatile unsigned char *const uart =
     (volatile unsigned char *)UART_BASE;
 
+// imprimir un caracter por uart
 void print_char(char c)
 {
     while ((uart[UART_LSR] & LSR_THR_EMPTY) == 0)
@@ -23,6 +24,7 @@ void print_char(char c)
     uart[UART_THR] = (unsigned char)c;
 }
 
+// imprimir una cadena por uart
 void print_string(const char *str)
 {
     while (*str)
@@ -31,12 +33,14 @@ void print_string(const char *str)
     }
 }
 
+// imprimir salto de linea
 void print_newline(void)
 {
     print_char('\r');
     print_char('\n');
 }
 
+// imprimir un byte en hexadecimal
 void print_hex8(uint8_t value)
 {
     static const char hex[] = "0123456789abcdef";
@@ -44,6 +48,7 @@ void print_hex8(uint8_t value)
     print_char(hex[value & 0xF]);
 }
 
+// imprimir una palabra de 32 bits en hexadecimal
 void print_hex32(uint32_t value)
 {
     static const char hex[] = "0123456789abcdef";
@@ -54,6 +59,7 @@ void print_hex32(uint32_t value)
     }
 }
 
+// imprimir un arreglo de palabras
 void print_words(const uint32_t *words, uint32_t count)
 {
     for (uint32_t i = 0; i < count; i++)
@@ -71,6 +77,7 @@ void print_words(const uint32_t *words, uint32_t count)
     }
 }
 
+// imprimir un arreglo de bytes
 void print_bytes_hex(const uint8_t *buffer, uint32_t len)
 {
     for (uint32_t i = 0; i < len; i++)
@@ -88,6 +95,7 @@ void print_bytes_hex(const uint8_t *buffer, uint32_t len)
     }
 }
 
+// imprimir una etiqueta y una palabra
 void print_named_word(const char *label, uint32_t value)
 {
     print_string(label);
@@ -96,6 +104,7 @@ void print_named_word(const char *label, uint32_t value)
     print_newline();
 }
 
+// calcular longitud de una cadena
 uint32_t string_length(const char *str)
 {
     uint32_t len = 0;
@@ -108,6 +117,7 @@ uint32_t string_length(const char *str)
     return len;
 }
 
+// imprimir un caracter repetido varias veces
 void print_repeat_char(char c, int count)
 {
     for (int i = 0; i < count; i++)
@@ -116,18 +126,21 @@ void print_repeat_char(char c, int count)
     }
 }
 
+// imprimir separador simple
 void print_separator(void)
 {
     print_repeat_char('-', 50);
     print_newline();
 }
 
+// imprimir separador principal
 void print_big_separator(void)
 {
     print_repeat_char('=', 50);
     print_newline();
 }
 
+// imprimir titulo de seccion
 void print_section_title(const char *title)
 {
     print_big_separator();
@@ -137,6 +150,7 @@ void print_section_title(const char *title)
     print_newline();
 }
 
+// imprimir entero sin signo en decimal
 void print_uint32(uint32_t value)
 {
     char buffer[10];
@@ -160,6 +174,7 @@ void print_uint32(uint32_t value)
     }
 }
 
+// imprimir titulo de prueba
 void print_test_title(uint32_t test_number)
 {
     print_separator();
@@ -169,6 +184,7 @@ void print_test_title(uint32_t test_number)
     print_separator();
 }
 
+// comparar arreglos de palabras
 int words_equal(const uint32_t *a, const uint32_t *b, uint32_t count)
 {
     for (uint32_t i = 0; i < count; i++)
@@ -182,6 +198,7 @@ int words_equal(const uint32_t *a, const uint32_t *b, uint32_t count)
     return 1;
 }
 
+// comparar arreglos de bytes
 int bytes_equal(const uint8_t *a, const uint8_t *b, uint32_t count)
 {
     for (uint32_t i = 0; i < count; i++)
@@ -195,6 +212,7 @@ int bytes_equal(const uint8_t *a, const uint8_t *b, uint32_t count)
     return 1;
 }
 
+// estructuras para los vectores de prueba
 typedef struct
 {
     const char *name;
@@ -215,6 +233,7 @@ typedef struct
     const uint8_t *expected;
 } encrypt_test_vector_t;
 
+// vectores de prueba del rfc 8439
 static const uint32_t quarter_input[4] = {
     0x11111111,
     0x01020304,
@@ -410,6 +429,7 @@ static const encrypt_test_vector_t encrypt_vectors[] = {
      encrypt_a2_v3_plaintext, sizeof(encrypt_a2_v3_plaintext) - 1, encrypt_a2_v3_expected},
 };
 
+// llamar a quarter_round desde c usando registros
 void quarter_round_call(uint32_t in0, uint32_t in1, uint32_t in2, uint32_t in3,
                         uint32_t *out0, uint32_t *out1, uint32_t *out2, uint32_t *out3)
 {
@@ -433,6 +453,7 @@ void quarter_round_call(uint32_t in0, uint32_t in1, uint32_t in2, uint32_t in3,
     *out3 = a3_reg;
 }
 
+// verificar si un buffer puede mostrarse como texto legible
 int is_printable_text(const uint8_t *buffer, uint32_t len)
 {
     for (uint32_t i = 0; i < len; i++)
@@ -453,6 +474,7 @@ int is_printable_text(const uint8_t *buffer, uint32_t len)
     return 1;
 }
 
+// imprimir como texto si es posible, o como bytes hex si no
 void print_text_or_hex(const uint8_t *buffer, uint32_t len)
 {
     if (is_printable_text(buffer, len))
@@ -469,6 +491,7 @@ void print_text_or_hex(const uint8_t *buffer, uint32_t len)
     }
 }
 
+// ejecutar pruebas de quarter round
 void quarter_test(void)
 {
     uint32_t result[4];
@@ -542,6 +565,7 @@ void quarter_test(void)
     print_newline();
 }
 
+// ejecutar pruebas de block
 void block_test(void)
 {
     uint32_t result[16];
@@ -582,6 +606,7 @@ void block_test(void)
     }
 }
 
+// ejecutar pruebas de encrypt
 void encrypt_test(void)
 {
     uint8_t result[512];
@@ -634,6 +659,7 @@ void encrypt_test(void)
     }
 }
 
+// punto de entrada principal
 void main(void)
 {
     print_section_title("PRUEBAS DE QUARTER ROUND");

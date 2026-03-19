@@ -81,14 +81,15 @@ En las pruebas de `chacha20_encrypt`, además, se vuelve a aplicar la función a
 ## 4. Compilación y ejecución
 
 ```bash
-# compilar
+# en una terminal
+make start
+
+#compilar
 make build
 
 # ejecutar con qemu
 make qmu
 
-# en otra terminal, iniciar gdb
-make dg
 ```
 
 También puede ejecutarse compilación y ejecución en un solo paso:
@@ -107,10 +108,10 @@ La depuración se realiza conectando `gdb-multiarch` al servidor remoto que QEMU
 Flujo típico de depuración:
 
 ```bash
-# en una terminal
-make qmu
+# en otra terminal, luego de inicializar QEMU
+make run
 
-# en otra terminal
+# iniciar debug en GDB
 make dg
 ```
 
