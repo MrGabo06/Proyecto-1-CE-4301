@@ -5,43 +5,47 @@
 
 
 quarter_round:
-    #Se cargan las variables
-    mv t0, a0
-    mv t1, a1
-    mv t2, a2
-    mv t3, a3
+    # aplica un quarter round de chacha20 sobre 4 palabras de 32 bits
+    # entradas: a0, a1, a2, a3
+    # salidas:  a0, a1, a2, a3
 
+    # cargar las 4 palabras en temporales
+    mv t0, a0      # a
+    mv t1, a1      # b
+    mv t2, a2      # c
+    mv t3, a3      # d
 
-    #Logica de los rounds
-    add t0, t0, t1
-    xor t3, t3, t0
+    # primera parte del quarter round
+    add t0, t0, t1 # a = a + b
+    xor t3, t3, t0 # d = d ^ a
 
     slli t4, t3, 16
     srli t5, t3, 16
-    or   t3, t4, t5
+    or   t3, t4, t5 # d = rotl(d, 16)
 
-    add t2, t2, t3
-    xor t1, t1, t2
+    add t2, t2, t3 # c = c + d
+    xor t1, t1, t2 # b = b ^ c
 
     slli t4, t1, 12
     srli t5, t1, 20
-    or   t1, t4, t5
+    or   t1, t4, t5 # b = rotl(b, 12)
 
-    add t0, t0, t1
-    xor t3, t3, t0
+    # segunda parte del quarter round
+    add t0, t0, t1 # a = a + b
+    xor t3, t3, t0 # d = d ^ a
 
     slli t4, t3, 8
     srli t5, t3, 24
-    or   t3, t4, t5
+    or   t3, t4, t5 # d = rotl(d, 8)
 
-    add t2, t2, t3
-    xor t1, t1, t2
+    add t2, t2, t3 # c = c + d
+    xor t1, t1, t2 # b = b ^ c
 
     slli t4, t1, 7
     srli t5, t1, 25
-    or   t1, t4, t5
+    or   t1, t4, t5 # b = rotl(b, 7)
 
-    #Se carga el resultado
+    # devolver resultados
     mv a0, t0
     mv a1, t1
     mv a2, t2
@@ -50,7 +54,8 @@ quarter_round:
 
 
 block:
-    # memoria reservada
+    # genera un bloque de keystream de chacha20 a partir de key, nonce y counter
+    # reserva espacio en el stack para guardar el estado original, el working state y los registros necesarios
     addi sp, sp, -144
     sw ra, 140(sp)
     sw s1, 136(sp)
@@ -131,7 +136,7 @@ block:
     sw t0, 132(sp)
 
 loop_rounds:
-    # columnas
+    # quarter rounds sobre las columnas del estado
     lw a0, 64(sp)
     lw a1, 80(sp)
     lw a2, 96(sp)
@@ -172,7 +177,7 @@ loop_rounds:
     sw a2, 108(sp)
     sw a3, 124(sp)
 
-    # diagonales
+    # quarter rounds sobre las diagonales del estado
     lw a0, 64(sp)
     lw a1, 84(sp)
     lw a2, 104(sp)
@@ -213,10 +218,11 @@ loop_rounds:
     sw a2, 100(sp)
     sw a3, 120(sp)
 
+    # disminuir contador de double rounds
     addi s1, s1, -1
     bnez s1, loop_rounds
 
-    # suma final
+    # sumar working state con original state
     lw t0, 0(sp)
     lw t1, 64(sp)
     add t1, t1, t0
@@ -297,7 +303,7 @@ loop_rounds:
     add t1, t1, t0
     sw t1, 124(sp)
 
-    # escribir keystream en el buffer de salida
+    # escribir el keystream final en el buffer de salida
     lw t2, 132(sp)
 
     lw t0, 64(sp)
@@ -348,18 +354,18 @@ loop_rounds:
     lw t0, 124(sp)
     sw t0, 60(t2)
 
-    # devolver puntero de salida en a0
+    # devolver el puntero al buffer de salida
     lw a0, 132(sp)
 
-    # restaurar registros
+    # restaurar registros guardados
     lw s1, 136(sp)
     lw ra, 140(sp)
     addi sp, sp, 144
     ret
 
-
 chacha20_encrypt:
-    # reservar memoria
+    # cifra o descifra un mensaje usando chacha20
+    # reserva espacio en el stack para guardar registros y un buffer temporal para el ultimo bloque
     addi sp, sp, -96
     sw ra, 92(sp)
     sw s2, 88(sp)
@@ -380,20 +386,21 @@ chacha20_encrypt:
     # calcular cantidad de loops
     mv t0, a4
     li t1, 64
-    div s2, t0, t1  # cantidad de loops de bloques completos
-    rem s3, t0, t1  # cantidad de loops en el bloque incompleto
+    div s2, t0, t1  # cantidad de bloques completos
+    rem s3, t0, t1  # cantidad de bytes del bloque incompleto
 
-    # verifica si el bloque que viene esta completo
+    # verificar si hay al menos un bloque completo
     beq s2, zero, check_incomplete
-    
 
 complete_block_loop:
+    # generar bloque de keystream completo
     mv a0, s4
     mv a1, s5
     mv a2, s6
     mv a3, s8
     jal ra, block
 
+    # aplicar xor entre keystream y plaintext
     mv t0, a0
     lw t1, 0(t0)
     lw t2, 0(s7)
@@ -490,6 +497,7 @@ complete_block_loop:
     xor t3, t1, t2
     sw t3, 60(s8)
 
+    # preparar siguiente bloque
     mv a0, s4
     mv a1, s5
     addi s6, s6, 1
@@ -499,21 +507,22 @@ complete_block_loop:
     addi s2, s2, -1
     bnez s2, complete_block_loop
 
-
-    # verifica si hay bytes sueltos
+    # verificar si hay bytes restantes
 check_incomplete:
     beq s3, zero, end_encrypt
 
 last_block:
+    # generar ultimo bloque de keystream en buffer temporal
     mv a0, s4
     mv a1, s5
     mv a2, s6
     addi t0, sp, 0
     mv a3, t0
     jal ra, block
-    mv t0, a0        
+    mv t0, a0
 
 block_incomplete_loop:
+    # aplicar xor byte a byte para el ultimo bloque parcial
     lbu t1, 0(t0)
     lbu t2, 0(s7)
     xor t3, t1, t2
@@ -526,7 +535,7 @@ block_incomplete_loop:
     bnez s3, block_incomplete_loop
 
 end_encrypt:
-    # devolver puntero al plaintext copiado
+    # devolver puntero al final del buffer de salida
     mv a0, s8
 
     # restaurar registros
@@ -540,4 +549,3 @@ end_encrypt:
     lw ra, 92(sp)
     addi sp, sp, 96
     ret
-    
